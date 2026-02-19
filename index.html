@@ -107,6 +107,41 @@
 
       <section id="kpiGrid" class="kpi-grid"></section>
 
+      <section class="advisor-panel panel">
+        <div class="advisor-head">
+          <h3>Strategy Advisor</h3>
+          <p>Model-generated ideas from current watchlist and market trend inputs.</p>
+        </div>
+        <div class="advisor-controls">
+          <label>
+            Risk Profile
+            <select id="riskProfileSelect">
+              <option value="CONSERVATIVE">Conservative</option>
+              <option value="BALANCED" selected>Balanced</option>
+              <option value="AGGRESSIVE">Aggressive</option>
+            </select>
+          </label>
+          <label>
+            Account Type
+            <select id="accountTypeSelect">
+              <option value="TAXABLE">Taxable Brokerage</option>
+              <option value="RETIREMENT">Tax-Advantaged (IRA/401k)</option>
+            </select>
+          </label>
+          <label>
+            Tax Bracket
+            <select id="taxBracketSelect">
+              <option value="12">12%</option>
+              <option value="22">22%</option>
+              <option value="24" selected>24%</option>
+              <option value="32">32%</option>
+              <option value="37">37%</option>
+            </select>
+          </label>
+        </div>
+        <div id="advisorOutput" class="advisor-output"></div>
+      </section>
+
       <section class="content-grid">
         <article class="panel table-panel">
           <div class="panel-head">

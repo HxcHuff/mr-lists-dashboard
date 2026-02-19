@@ -7,6 +7,7 @@ const SESSION_MS = 45 * 60 * 1000;
 const LIVE_REFRESH_MS = 60 * 1000;
 const WATCHLISTS_KEY = "finDashWatchlists";
 const ACTIVE_WATCHLIST_KEY = "finDashActiveWatchlist";
+const ADVISOR_SETTINGS_KEY = "finDashAdvisorSettings";
 
 const STOCKS = [
   { symbol: "AAPL", company: "Apple", category: "TECH", exchange: "NASDAQ", price: 228.74, dayPct: 0.94, ytdPct: 19.8, pe: 32.1, marketCap: 3560, volume: 58300000, trend: [220, 222, 223, 224, 225, 227, 228.74] },
@@ -57,6 +58,19 @@ function loadWatchlists() {
   }
 }
 
+function loadAdvisorSettings() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(ADVISOR_SETTINGS_KEY) || "{}");
+    return {
+      risk: ["CONSERVATIVE", "BALANCED", "AGGRESSIVE"].includes(raw.risk) ? raw.risk : "BALANCED",
+      accountType: ["TAXABLE", "RETIREMENT"].includes(raw.accountType) ? raw.accountType : "TAXABLE",
+      taxBracket: [12, 22, 24, 32, 37].includes(Number(raw.taxBracket)) ? Number(raw.taxBracket) : 24
+    };
+  } catch {
+    return { risk: "BALANCED", accountType: "TAXABLE", taxBracket: 24 };
+  }
+}
+
 const state = {
   stocks: structuredClone(STOCKS),
   selectedSymbol: "NVDA",
@@ -64,7 +78,8 @@ const state = {
   lastUpdated: null,
   liveError: "",
   watchlists: loadWatchlists(),
-  activeWatchlistId: localStorage.getItem(ACTIVE_WATCHLIST_KEY) || "ALL"
+  activeWatchlistId: localStorage.getItem(ACTIVE_WATCHLIST_KEY) || "ALL",
+  advisor: loadAdvisorSettings()
 };
 
 const authCard = document.getElementById("authCard");
@@ -97,6 +112,10 @@ const watchlistNameInput = document.getElementById("watchlistNameInput");
 const createWatchlistBtn = document.getElementById("createWatchlistBtn");
 const renameWatchlistBtn = document.getElementById("renameWatchlistBtn");
 const deleteWatchlistBtn = document.getElementById("deleteWatchlistBtn");
+const riskProfileSelect = document.getElementById("riskProfileSelect");
+const accountTypeSelect = document.getElementById("accountTypeSelect");
+const taxBracketSelect = document.getElementById("taxBracketSelect");
+const advisorOutput = document.getElementById("advisorOutput");
 
 const lockState = () => JSON.parse(localStorage.getItem("lockState") || "{\"attempts\":0,\"until\":0}");
 
@@ -331,6 +350,116 @@ function renderPredictor() {
   watchlistSymbols.innerHTML = scopedStocks
     .map((s) => `<span class="symbol-pill ${s.dayPct >= 0 ? "up" : "down"}">${s.symbol} ${fmtPct(s.dayPct)}</span>`)
     .join("");
+}
+
+function persistAdvisorSettings() {
+  localStorage.setItem(ADVISOR_SETTINGS_KEY, JSON.stringify(state.advisor));
+}
+
+function buildAdvisorRecommendation(stocks) {
+  if (!stocks.length) {
+    return {
+      allocation: { cash: 40, etf: 45, stocks: 15 },
+      taxTips: ["Add symbols to a watchlist to generate tailored guidance."],
+      signals: { buy: [], hold: [], sell: [] }
+    };
+  }
+
+  const baseByRisk = {
+    CONSERVATIVE: { cash: 35, etf: 50, stocks: 15 },
+    BALANCED: { cash: 20, etf: 45, stocks: 35 },
+    AGGRESSIVE: { cash: 10, etf: 35, stocks: 55 }
+  };
+
+  const allocation = { ...baseByRisk[state.advisor.risk] };
+  const avgDay = stocks.reduce((sum, s) => sum + s.dayPct, 0) / stocks.length;
+  const avgYtd = stocks.reduce((sum, s) => sum + s.ytdPct, 0) / stocks.length;
+
+  if (avgDay < -0.7 || avgYtd < -1.5) {
+    allocation.cash += 8;
+    allocation.stocks -= 6;
+    allocation.etf -= 2;
+  } else if (avgDay > 0.7 && avgYtd > 2) {
+    allocation.cash -= 4;
+    allocation.stocks += 4;
+  }
+
+  const total = allocation.cash + allocation.etf + allocation.stocks;
+  allocation.cash = Math.max(5, Math.round((allocation.cash / total) * 100));
+  allocation.etf = Math.max(15, Math.round((allocation.etf / total) * 100));
+  allocation.stocks = Math.max(10, 100 - allocation.cash - allocation.etf);
+
+  const taxTips = [];
+  if (state.advisor.accountType === "TAXABLE") {
+    taxTips.push("Prioritize ETFs for core exposure to reduce taxable distributions.");
+    taxTips.push("Harvest losses on laggards to offset gains when possible.");
+    taxTips.push("Target 1+ year holding periods for lower long-term capital gains rates.");
+  } else {
+    taxTips.push("Place higher-turnover or high-yield ideas in retirement accounts first.");
+    taxTips.push("Max contributions before adding more taxable risk.");
+    taxTips.push("Rebalance in retirement accounts to avoid taxable events.");
+  }
+
+  if (state.advisor.taxBracket >= 32) {
+    taxTips.push("Higher bracket detected: emphasize tax-efficient ETFs and deferred gains.");
+  }
+
+  const scored = stocks.map((s) => {
+    const momentum = ((s.trend[s.trend.length - 1] - s.trend[0]) / s.trend[0]) * 100;
+    let score = s.dayPct * 0.4 + s.ytdPct * 0.3 + momentum * 0.3;
+    if (typeof s.pe === "number" && s.pe > 55) {
+      score -= 1.1;
+    }
+    return { symbol: s.symbol, score };
+  });
+
+  const signals = { buy: [], hold: [], sell: [] };
+  scored.forEach((s) => {
+    if (s.score > 5) {
+      signals.buy.push(s.symbol);
+    } else if (s.score < -2.5) {
+      signals.sell.push(s.symbol);
+    } else {
+      signals.hold.push(s.symbol);
+    }
+  });
+
+  return { allocation, taxTips, signals };
+}
+
+function renderAdvisor(stocks) {
+  const { allocation, taxTips, signals } = buildAdvisorRecommendation(stocks);
+
+  const renderSignalPills = (items, kind, fallback) =>
+    items.length
+      ? items.map((s) => `<span class="signal-pill ${kind}">${kind.toUpperCase()} ${s}</span>`).join("")
+      : `<span class="signal-pill ${kind}">${fallback}</span>`;
+
+  advisorOutput.innerHTML = `
+    <div class="advisor-grid">
+      <div>
+        <p class="advisor-block-title">Allocation</p>
+        <div class="alloc-row"><span>Cash</span><strong>${allocation.cash}%</strong></div>
+        <div class="alloc-row"><span>ETFs</span><strong>${allocation.etf}%</strong></div>
+        <div class="alloc-row"><span>Individual Stocks</span><strong>${allocation.stocks}%</strong></div>
+      </div>
+      <div>
+        <p class="advisor-block-title">Tax Optimization</p>
+        <ul class="mini-list">
+          ${taxTips.map((tip) => `<li>${tip}</li>`).join("")}
+        </ul>
+      </div>
+      <div>
+        <p class="advisor-block-title">Buy / Hold / Sell</p>
+        <div class="signal-list">
+          ${renderSignalPills(signals.buy, "buy", "BUY none")}
+          ${renderSignalPills(signals.hold.slice(0, 3), "hold", "HOLD none")}
+          ${renderSignalPills(signals.sell, "sell", "SELL none")}
+        </div>
+      </div>
+    </div>
+    <p class="advisor-note">Educational model output only, not financial/tax/legal advice.</p>
+  `;
 }
 
 async function sha256(text) {
@@ -650,6 +779,7 @@ function render() {
   const stocks = filteredStocks();
   renderWatchlistControls();
   renderKpis(stocks);
+  renderAdvisor(stocks);
   renderTable(stocks);
   renderPredictor();
   updateMarketStatus();
@@ -660,6 +790,9 @@ function showDashboard() {
   dashboard.classList.remove("hidden");
   dashboard.setAttribute("aria-hidden", "false");
   dataMode.value = state.dataMode;
+  riskProfileSelect.value = state.advisor.risk;
+  accountTypeSelect.value = state.advisor.accountType;
+  taxBracketSelect.value = String(state.advisor.taxBracket);
   render();
   refreshLiveData();
 }
@@ -762,6 +895,24 @@ function bindEvents() {
     localStorage.setItem("finDashDataMode", state.dataMode);
     render();
     refreshLiveData({ manual: true });
+  });
+
+  riskProfileSelect.addEventListener("change", () => {
+    state.advisor.risk = riskProfileSelect.value;
+    persistAdvisorSettings();
+    render();
+  });
+
+  accountTypeSelect.addEventListener("change", () => {
+    state.advisor.accountType = accountTypeSelect.value;
+    persistAdvisorSettings();
+    render();
+  });
+
+  taxBracketSelect.addEventListener("change", () => {
+    state.advisor.taxBracket = Number(taxBracketSelect.value);
+    persistAdvisorSettings();
+    render();
   });
 
   saveApiKeyBtn.addEventListener("click", () => {
