@@ -482,29 +482,35 @@ canvas {
   background: rgba(255, 255, 255, 0.8);
 }
 
-.settings-page {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  display: grid;
-  place-items: center;
-  padding: 18px;
-  background: rgba(15, 23, 42, 0.45);
-  overflow-y: auto;
+.app-page {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 24px 16px 30px;
 }
 
-.settings-page.hidden {
+.app-page.hidden {
   display: none;
 }
 
-.settings-card {
-  width: min(760px, 100%);
+.app-page-panel {
+  padding: 14px;
+}
+
+.page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.page-head h2 {
+  margin: 0;
 }
 
 .strategy-lab-card {
   width: min(980px, 100%);
-  max-height: calc(100vh - 36px);
-  overflow-y: auto;
+  margin: 0 auto;
 }
 
 .strategy-score-grid {
@@ -703,6 +709,10 @@ canvas {
     padding: 16px 12px 24px;
   }
 
+  .app-page {
+    padding: 16px 12px 24px;
+  }
+
   .topbar {
     flex-direction: column;
     align-items: flex-start;
@@ -716,6 +726,11 @@ canvas {
   .watchlist-bar,
   .kpi-grid {
     grid-template-columns: 1fr;
+  }
+
+  .page-head {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .auth-card {

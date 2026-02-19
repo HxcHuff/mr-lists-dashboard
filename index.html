@@ -181,13 +181,13 @@
     </main>
   </div>
 
-  <section id="settingsPage" class="settings-page hidden" aria-hidden="true">
-    <article class="settings-card panel">
-      <div class="settings-head">
-        <h3>System Settings</h3>
-        <button id="closeSettingsBtn" type="button" class="secondary">Close</button>
+  <section id="settingsPage" class="app-page hidden" aria-hidden="true">
+    <article class="panel app-page-panel">
+      <div class="page-head">
+        <h2>System Settings</h2>
+        <button id="closeSettingsBtn" type="button" class="secondary">Back to Dashboard</button>
       </div>
-      <p class="settings-note">Live Data Setup: paste your Finnhub API key, then click save.</p>
+      <p class="settings-note">Live data and portfolio integrations.</p>
       <div class="live-setup-controls">
         <label>
           Finnhub API Key
@@ -196,7 +196,7 @@
         <button id="saveApiKeyBtn" type="button" class="secondary">Save API Key</button>
         <button id="refreshBtn" type="button">Refresh Data Now</button>
       </div>
-      <p class="settings-note">Portfolio Import: add brokerage/integration API key if portfolio import is needed.</p>
+      <p class="settings-note">Portfolio import key for broker integrations.</p>
       <div class="live-setup-controls">
         <label>
           Portfolio Import API Key
@@ -208,11 +208,11 @@
     </article>
   </section>
 
-  <section id="strategyLabPage" class="settings-page hidden" aria-hidden="true">
-    <article class="strategy-lab-card panel">
-      <div class="settings-head">
-        <h3>Strategy Lab</h3>
-        <button id="closeStrategyLabBtn" type="button" class="secondary">Close</button>
+  <section id="strategyLabPage" class="app-page hidden" aria-hidden="true">
+    <article class="panel app-page-panel strategy-lab-card">
+      <div class="page-head">
+        <h2>Strategy Lab</h2>
+        <button id="closeStrategyLabBtn" type="button" class="secondary">Back to Dashboard</button>
       </div>
       <p class="settings-note">Drag factors into Active Signals, adjust weights, and get a prediction and consolidation score.</p>
 
@@ -249,11 +249,11 @@
     </article>
   </section>
 
-  <section id="portfolioPage" class="settings-page hidden" aria-hidden="true">
-    <article class="strategy-lab-card panel">
-      <div class="settings-head">
-        <h3>Portfolio</h3>
-        <button id="closePortfolioBtn" type="button" class="secondary">Close</button>
+  <section id="portfolioPage" class="app-page hidden" aria-hidden="true">
+    <article class="panel app-page-panel strategy-lab-card">
+      <div class="page-head">
+        <h2>Portfolio</h2>
+        <button id="closePortfolioBtn" type="button" class="secondary">Back to Dashboard</button>
       </div>
       <div class="portfolio-controls">
         <label>

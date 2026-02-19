@@ -1173,7 +1173,13 @@ function render() {
 function showDashboard() {
   authCard.classList.add("hidden");
   dashboard.classList.remove("hidden");
+  settingsPage.classList.add("hidden");
+  strategyLabPage.classList.add("hidden");
+  portfolioPage.classList.add("hidden");
   dashboard.setAttribute("aria-hidden", "false");
+  settingsPage.setAttribute("aria-hidden", "true");
+  strategyLabPage.setAttribute("aria-hidden", "true");
+  portfolioPage.setAttribute("aria-hidden", "true");
   dataMode.value = state.dataMode;
   riskProfileSelect.value = state.advisor.risk;
   accountTypeSelect.value = state.advisor.accountType;
@@ -1195,35 +1201,50 @@ function showLogin() {
 }
 
 function openSettings() {
+  dashboard.classList.add("hidden");
   settingsPage.classList.remove("hidden");
+  strategyLabPage.classList.add("hidden");
+  portfolioPage.classList.add("hidden");
+  dashboard.setAttribute("aria-hidden", "true");
   settingsPage.setAttribute("aria-hidden", "false");
+  strategyLabPage.setAttribute("aria-hidden", "true");
+  portfolioPage.setAttribute("aria-hidden", "true");
 }
 
 function closeSettings() {
-  settingsPage.classList.add("hidden");
-  settingsPage.setAttribute("aria-hidden", "true");
+  showDashboard();
 }
 
 function openStrategyLab() {
+  dashboard.classList.add("hidden");
+  settingsPage.classList.add("hidden");
   strategyLabPage.classList.remove("hidden");
+  portfolioPage.classList.add("hidden");
+  dashboard.setAttribute("aria-hidden", "true");
+  settingsPage.setAttribute("aria-hidden", "true");
   strategyLabPage.setAttribute("aria-hidden", "false");
+  portfolioPage.setAttribute("aria-hidden", "true");
   renderStrategyLab();
 }
 
 function closeStrategyLab() {
-  strategyLabPage.classList.add("hidden");
-  strategyLabPage.setAttribute("aria-hidden", "true");
+  showDashboard();
 }
 
 function openPortfolioPage() {
+  dashboard.classList.add("hidden");
+  settingsPage.classList.add("hidden");
+  strategyLabPage.classList.add("hidden");
   portfolioPage.classList.remove("hidden");
+  dashboard.setAttribute("aria-hidden", "true");
+  settingsPage.setAttribute("aria-hidden", "true");
+  strategyLabPage.setAttribute("aria-hidden", "true");
   portfolioPage.setAttribute("aria-hidden", "false");
   renderPortfolio();
 }
 
 function closePortfolioPage() {
-  portfolioPage.classList.add("hidden");
-  portfolioPage.setAttribute("aria-hidden", "true");
+  showDashboard();
 }
 
 function updateClock() {
@@ -1277,21 +1298,6 @@ function bindEvents() {
   closePortfolioBtn.addEventListener("click", closePortfolioPage);
   strategyLabBtn.addEventListener("click", openStrategyLab);
   closeStrategyLabBtn.addEventListener("click", closeStrategyLab);
-  settingsPage.addEventListener("click", (event) => {
-    if (event.target === settingsPage) {
-      closeSettings();
-    }
-  });
-  strategyLabPage.addEventListener("click", (event) => {
-    if (event.target === strategyLabPage) {
-      closeStrategyLab();
-    }
-  });
-  portfolioPage.addEventListener("click", (event) => {
-    if (event.target === portfolioPage) {
-      closePortfolioPage();
-    }
-  });
 
   [sectorFilter, exchangeFilter, sortFilter, searchInput].forEach((el) => {
     el.addEventListener("input", render);
