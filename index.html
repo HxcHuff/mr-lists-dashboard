@@ -40,6 +40,7 @@
         <div class="session-actions">
           <span id="sessionClock"></span>
           <span id="marketStatus" class="market-status">Data: Simulated</span>
+          <button id="strategyLabBtn" type="button" class="secondary">Strategy Lab</button>
           <button id="settingsBtn" type="button" class="secondary">System Settings</button>
           <button id="logoutBtn" type="button">Log Out</button>
         </div>
@@ -193,6 +194,42 @@
         </label>
         <button id="saveApiKeyBtn" type="button" class="secondary">Save API Key</button>
         <button id="refreshBtn" type="button">Refresh Data Now</button>
+      </div>
+    </article>
+  </section>
+
+  <section id="strategyLabPage" class="settings-page hidden" aria-hidden="true">
+    <article class="strategy-lab-card panel">
+      <div class="settings-head">
+        <h3>Strategy Lab</h3>
+        <button id="closeStrategyLabBtn" type="button" class="secondary">Close</button>
+      </div>
+      <p class="settings-note">Drag factors into Active Signals, adjust weights, and get a prediction and consolidation score.</p>
+
+      <div class="strategy-score-grid">
+        <div class="strategy-score">
+          <p class="strategy-score-label">Prediction Score</p>
+          <p id="predictionScoreValue" class="strategy-score-value">0</p>
+        </div>
+        <div class="strategy-score">
+          <p class="strategy-score-label">Consolidation Score</p>
+          <p id="consolidationScoreValue" class="strategy-score-value">0</p>
+        </div>
+        <div class="strategy-score">
+          <p class="strategy-score-label">Signal Summary</p>
+          <p id="strategySignalSummary" class="strategy-score-value">Neutral</p>
+        </div>
+      </div>
+
+      <div class="strategy-dnd-grid">
+        <section>
+          <h4 class="strategy-column-title">Factor Library</h4>
+          <div id="factorLibraryZone" class="strategy-zone"></div>
+        </section>
+        <section>
+          <h4 class="strategy-column-title">Active Signals</h4>
+          <div id="activeSignalsZone" class="strategy-zone strategy-zone-active"></div>
+        </section>
       </div>
     </article>
   </section>

@@ -8,6 +8,7 @@ const LIVE_REFRESH_MS = 60 * 1000;
 const WATCHLISTS_KEY = "finDashWatchlists";
 const ACTIVE_WATCHLIST_KEY = "finDashActiveWatchlist";
 const ADVISOR_SETTINGS_KEY = "finDashAdvisorSettings";
+const STRATEGY_LAB_KEY = "finDashStrategyLab";
 
 const STOCKS = [
   { symbol: "AAPL", company: "Apple", category: "TECH", exchange: "NASDAQ", price: 228.74, dayPct: 0.94, ytdPct: 19.8, pe: 32.1, marketCap: 3560, volume: 58300000, trend: [220, 222, 223, 224, 225, 227, 228.74] },
@@ -35,6 +36,15 @@ const DEFAULT_WATCHLISTS = [
     name: "Starter Watchlist",
     symbols: ["AAPL", "NVDA", "TSLA"]
   }
+];
+
+const FACTOR_LIBRARY = [
+  { id: "momentum", name: "Momentum", note: "Day move + short trend acceleration." },
+  { id: "trend", name: "Trend", note: "YTD directional quality." },
+  { id: "breadth", name: "Breadth", note: "How many symbols are green today." },
+  { id: "valuation", name: "Valuation", note: "P/E risk balance." },
+  { id: "liquidity", name: "Liquidity", note: "Average tradable depth." },
+  { id: "concentration", name: "Concentration", note: "Diversification across symbols." }
 ];
 
 function loadWatchlists() {
@@ -71,6 +81,32 @@ function loadAdvisorSettings() {
   }
 }
 
+function loadStrategyLabState() {
+  const defaultActive = ["momentum", "trend", "breadth", "valuation"];
+  const allIds = FACTOR_LIBRARY.map((f) => f.id);
+  const defaultLibrary = allIds.filter((id) => !defaultActive.includes(id));
+  const defaultWeights = Object.fromEntries(allIds.map((id) => [id, 50]));
+
+  try {
+    const raw = JSON.parse(localStorage.getItem(STRATEGY_LAB_KEY) || "{}");
+    const activeIds = Array.isArray(raw.activeFactorIds) ? raw.activeFactorIds.filter((id) => allIds.includes(id)) : defaultActive;
+    const libraryIds = Array.isArray(raw.libraryFactorIds) ? raw.libraryFactorIds.filter((id) => allIds.includes(id) && !activeIds.includes(id)) : defaultLibrary;
+    const missing = allIds.filter((id) => !activeIds.includes(id) && !libraryIds.includes(id));
+    const weights = { ...defaultWeights, ...(raw.weights || {}) };
+    return {
+      activeFactorIds: [...new Set(activeIds)],
+      libraryFactorIds: [...new Set([...libraryIds, ...missing])],
+      weights
+    };
+  } catch {
+    return {
+      activeFactorIds: defaultActive,
+      libraryFactorIds: defaultLibrary,
+      weights: defaultWeights
+    };
+  }
+}
+
 const state = {
   stocks: structuredClone(STOCKS),
   selectedSymbol: "NVDA",
@@ -79,7 +115,8 @@ const state = {
   liveError: "",
   watchlists: loadWatchlists(),
   activeWatchlistId: localStorage.getItem(ACTIVE_WATCHLIST_KEY) || "ALL",
-  advisor: loadAdvisorSettings()
+  advisor: loadAdvisorSettings(),
+  strategyLab: loadStrategyLabState()
 };
 
 const authCard = document.getElementById("authCard");
@@ -90,6 +127,9 @@ const logoutBtn = document.getElementById("logoutBtn");
 const settingsBtn = document.getElementById("settingsBtn");
 const settingsPage = document.getElementById("settingsPage");
 const closeSettingsBtn = document.getElementById("closeSettingsBtn");
+const strategyLabBtn = document.getElementById("strategyLabBtn");
+const strategyLabPage = document.getElementById("strategyLabPage");
+const closeStrategyLabBtn = document.getElementById("closeStrategyLabBtn");
 const clock = document.getElementById("sessionClock");
 const marketStatus = document.getElementById("marketStatus");
 const stockTableBody = document.getElementById("stockTableBody");
@@ -116,6 +156,11 @@ const riskProfileSelect = document.getElementById("riskProfileSelect");
 const accountTypeSelect = document.getElementById("accountTypeSelect");
 const taxBracketSelect = document.getElementById("taxBracketSelect");
 const advisorOutput = document.getElementById("advisorOutput");
+const factorLibraryZone = document.getElementById("factorLibraryZone");
+const activeSignalsZone = document.getElementById("activeSignalsZone");
+const predictionScoreValue = document.getElementById("predictionScoreValue");
+const consolidationScoreValue = document.getElementById("consolidationScoreValue");
+const strategySignalSummary = document.getElementById("strategySignalSummary");
 
 const lockState = () => JSON.parse(localStorage.getItem("lockState") || "{\"attempts\":0,\"until\":0}");
 
@@ -354,6 +399,145 @@ function renderPredictor() {
 
 function persistAdvisorSettings() {
   localStorage.setItem(ADVISOR_SETTINGS_KEY, JSON.stringify(state.advisor));
+}
+
+function persistStrategyLab() {
+  localStorage.setItem(STRATEGY_LAB_KEY, JSON.stringify(state.strategyLab));
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function getFactorScores(stocks) {
+  if (!stocks.length) {
+    return {
+      momentum: 0,
+      trend: 0,
+      breadth: 0,
+      valuation: 0,
+      liquidity: 0,
+      concentration: 0
+    };
+  }
+
+  const avgDay = stocks.reduce((sum, s) => sum + s.dayPct, 0) / stocks.length;
+  const avgYtd = stocks.reduce((sum, s) => sum + s.ytdPct, 0) / stocks.length;
+  const avgVol = stocks.reduce((sum, s) => sum + s.volume, 0) / stocks.length;
+  const posPct = stocks.filter((s) => s.dayPct >= 0).length / stocks.length;
+
+  const momentum7 = stocks.reduce((sum, s) => {
+    const first = s.trend[0] || s.price;
+    const last = s.trend[s.trend.length - 1] || s.price;
+    return sum + ((last - first) / first) * 100;
+  }, 0) / stocks.length;
+
+  const peSet = stocks.filter((s) => s.pe !== null);
+  const avgPe = peSet.length ? peSet.reduce((sum, s) => sum + s.pe, 0) / peSet.length : 24;
+
+  const capTotal = stocks.reduce((sum, s) => sum + s.marketCap, 0) || 1;
+  const topShare = Math.max(...stocks.map((s) => s.marketCap)) / capTotal;
+  const dayRange = Math.max(...stocks.map((s) => s.dayPct)) - Math.min(...stocks.map((s) => s.dayPct));
+  const dayStd = Math.sqrt(stocks.reduce((sum, s) => sum + ((s.dayPct - avgDay) ** 2), 0) / stocks.length);
+
+  return {
+    momentum: clamp(avgDay * 35 + momentum7 * 1.2, -100, 100),
+    trend: clamp(avgYtd * 2, -100, 100),
+    breadth: clamp((posPct * 200) - 100, -100, 100),
+    valuation: clamp((24 - avgPe) * 3, -100, 100),
+    liquidity: clamp(((avgVol / 25000000) - 1) * 70, -100, 100),
+    concentration: clamp((0.35 - topShare) * 280 + clamp(100 - dayRange * 16 - dayStd * 18, -40, 40), -100, 100)
+  };
+}
+
+function computeStrategyScores(stocks) {
+  const factorScores = getFactorScores(stocks);
+  const activeIds = state.strategyLab.activeFactorIds;
+  if (!activeIds.length) {
+    return { prediction: 0, consolidation: 50, summary: "Neutral", factorScores };
+  }
+
+  let totalWeight = 0;
+  let weightedScore = 0;
+  activeIds.forEach((id) => {
+    const weight = clamp(Number(state.strategyLab.weights[id] || 50), 1, 100);
+    totalWeight += weight;
+    weightedScore += (factorScores[id] || 0) * weight;
+  });
+
+  const prediction = totalWeight ? clamp(weightedScore / totalWeight, -100, 100) : 0;
+
+  const breadthStability = clamp(100 - Math.abs(factorScores.breadth) * 0.45, 0, 100);
+  const consolidation = Math.round(clamp(
+    ((factorScores.concentration + 100) / 2) * 0.55
+      + ((factorScores.valuation + 100) / 2) * 0.15
+      + breadthStability * 0.30,
+    0,
+    100
+  ));
+
+  let summary = "Neutral";
+  if (prediction >= 28) {
+    summary = "Bullish Setup";
+  } else if (prediction <= -28) {
+    summary = "Defensive / Bearish";
+  } else if (consolidation >= 70) {
+    summary = "Consolidation Breakout Watch";
+  }
+
+  return { prediction: Number(prediction.toFixed(1)), consolidation, summary, factorScores };
+}
+
+function strategyFactorCard(id, inActive, score) {
+  const factor = FACTOR_LIBRARY.find((f) => f.id === id);
+  if (!factor) {
+    return "";
+  }
+  const weight = clamp(Number(state.strategyLab.weights[id] || 50), 1, 100);
+  return `
+    <article class="strategy-factor-card" draggable="true" data-factor-id="${id}">
+      <div class="strategy-factor-row">
+        <strong>${factor.name}</strong>
+        <span class="strategy-factor-score">${score > 0 ? "+" : ""}${score.toFixed(1)}</span>
+      </div>
+      <p>${factor.note}</p>
+      ${inActive ? `
+        <label class="strategy-weight-label">
+          Weight
+          <input type="range" min="1" max="100" value="${weight}" data-factor-weight="${id}" />
+        </label>
+      ` : ""}
+    </article>
+  `;
+}
+
+function renderStrategyLab() {
+  const scoped = getWatchlistStocks();
+  const result = computeStrategyScores(scoped);
+
+  predictionScoreValue.textContent = `${result.prediction > 0 ? "+" : ""}${result.prediction}`;
+  consolidationScoreValue.textContent = `${result.consolidation}`;
+  strategySignalSummary.textContent = result.summary;
+
+  factorLibraryZone.innerHTML = state.strategyLab.libraryFactorIds
+    .map((id) => strategyFactorCard(id, false, result.factorScores[id] || 0))
+    .join("");
+
+  activeSignalsZone.innerHTML = state.strategyLab.activeFactorIds
+    .map((id) => strategyFactorCard(id, true, result.factorScores[id] || 0))
+    .join("");
+}
+
+function moveFactor(factorId, toActive) {
+  state.strategyLab.activeFactorIds = state.strategyLab.activeFactorIds.filter((id) => id !== factorId);
+  state.strategyLab.libraryFactorIds = state.strategyLab.libraryFactorIds.filter((id) => id !== factorId);
+  if (toActive) {
+    state.strategyLab.activeFactorIds.push(factorId);
+  } else {
+    state.strategyLab.libraryFactorIds.push(factorId);
+  }
+  persistStrategyLab();
+  renderStrategyLab();
 }
 
 function buildAdvisorRecommendation(stocks) {
@@ -782,6 +966,7 @@ function render() {
   renderAdvisor(stocks);
   renderTable(stocks);
   renderPredictor();
+  renderStrategyLab();
   updateMarketStatus();
 }
 
@@ -800,6 +985,8 @@ function showDashboard() {
 function showLogin() {
   settingsPage.classList.add("hidden");
   settingsPage.setAttribute("aria-hidden", "true");
+  strategyLabPage.classList.add("hidden");
+  strategyLabPage.setAttribute("aria-hidden", "true");
   dashboard.classList.add("hidden");
   dashboard.setAttribute("aria-hidden", "true");
   authCard.classList.remove("hidden");
@@ -813,6 +1000,17 @@ function openSettings() {
 function closeSettings() {
   settingsPage.classList.add("hidden");
   settingsPage.setAttribute("aria-hidden", "true");
+}
+
+function openStrategyLab() {
+  strategyLabPage.classList.remove("hidden");
+  strategyLabPage.setAttribute("aria-hidden", "false");
+  renderStrategyLab();
+}
+
+function closeStrategyLab() {
+  strategyLabPage.classList.add("hidden");
+  strategyLabPage.setAttribute("aria-hidden", "true");
 }
 
 function updateClock() {
@@ -862,9 +1060,16 @@ function bindEvents() {
   });
   settingsBtn.addEventListener("click", openSettings);
   closeSettingsBtn.addEventListener("click", closeSettings);
+  strategyLabBtn.addEventListener("click", openStrategyLab);
+  closeStrategyLabBtn.addEventListener("click", closeStrategyLab);
   settingsPage.addEventListener("click", (event) => {
     if (event.target === settingsPage) {
       closeSettings();
+    }
+  });
+  strategyLabPage.addEventListener("click", (event) => {
+    if (event.target === strategyLabPage) {
+      closeStrategyLab();
     }
   });
 
@@ -913,6 +1118,43 @@ function bindEvents() {
     state.advisor.taxBracket = Number(taxBracketSelect.value);
     persistAdvisorSettings();
     render();
+  });
+
+  [factorLibraryZone, activeSignalsZone].forEach((zone) => {
+    zone.addEventListener("dragover", (event) => {
+      event.preventDefault();
+    });
+
+    zone.addEventListener("drop", (event) => {
+      event.preventDefault();
+      const factorId = event.dataTransfer.getData("text/plain");
+      if (!factorId) {
+        return;
+      }
+      moveFactor(factorId, zone === activeSignalsZone);
+    });
+  });
+
+  [factorLibraryZone, activeSignalsZone].forEach((zone) => {
+    zone.addEventListener("dragstart", (event) => {
+      const card = event.target.closest("[data-factor-id]");
+      if (!card) {
+        return;
+      }
+      event.dataTransfer.setData("text/plain", card.dataset.factorId);
+      event.dataTransfer.effectAllowed = "move";
+    });
+  });
+
+  activeSignalsZone.addEventListener("input", (event) => {
+    const input = event.target.closest("[data-factor-weight]");
+    if (!input) {
+      return;
+    }
+    const factorId = input.dataset.factorWeight;
+    state.strategyLab.weights[factorId] = Number(input.value);
+    persistStrategyLab();
+    renderStrategyLab();
   });
 
   saveApiKeyBtn.addEventListener("click", () => {
