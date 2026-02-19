@@ -562,6 +562,11 @@ canvas {
   background: rgba(239, 246, 255, 0.7);
 }
 
+.strategy-zone.is-over {
+  border-color: rgba(14, 165, 233, 0.95);
+  background: rgba(219, 234, 254, 0.82);
+}
+
 .strategy-factor-card {
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -572,6 +577,10 @@ canvas {
 
 .strategy-factor-card:active {
   cursor: grabbing;
+}
+
+.strategy-factor-card.dragging {
+  opacity: 0.6;
 }
 
 .strategy-factor-row {
@@ -591,6 +600,13 @@ canvas {
   margin: 4px 0 6px;
   color: #64748b;
   font-size: 0.78rem;
+}
+
+.strategy-factor-btn {
+  width: fit-content;
+  font-size: 0.72rem;
+  padding: 4px 9px;
+  border-radius: 8px;
 }
 
 .strategy-weight-label {

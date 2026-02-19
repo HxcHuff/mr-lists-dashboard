@@ -501,6 +501,9 @@ function strategyFactorCard(id, inActive, score) {
         <span class="strategy-factor-score">${score > 0 ? "+" : ""}${score.toFixed(1)}</span>
       </div>
       <p>${factor.note}</p>
+      <button type="button" class="secondary strategy-factor-btn" data-factor-action="${inActive ? "remove" : "add"}" data-factor-id="${id}">
+        ${inActive ? "Remove" : "Add"}
+      </button>
       ${inActive ? `
         <label class="strategy-weight-label">
           Weight
@@ -526,6 +529,32 @@ function renderStrategyLab() {
   activeSignalsZone.innerHTML = state.strategyLab.activeFactorIds
     .map((id) => strategyFactorCard(id, true, result.factorScores[id] || 0))
     .join("");
+
+  bindStrategyLabEvents();
+}
+
+function bindStrategyLabEvents() {
+  document.querySelectorAll(".strategy-factor-card[draggable='true']").forEach((card) => {
+    card.addEventListener("dragstart", (event) => {
+      const factorId = card.dataset.factorId;
+      event.dataTransfer.setData("text/plain", factorId);
+      event.dataTransfer.effectAllowed = "move";
+      card.classList.add("dragging");
+    });
+    card.addEventListener("dragend", () => {
+      card.classList.remove("dragging");
+      factorLibraryZone.classList.remove("is-over");
+      activeSignalsZone.classList.remove("is-over");
+    });
+  });
+
+  document.querySelectorAll("[data-factor-action]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const factorId = btn.dataset.factorId;
+      const action = btn.dataset.factorAction;
+      moveFactor(factorId, action === "add");
+    });
+  });
 }
 
 function moveFactor(factorId, toActive) {
@@ -1123,26 +1152,21 @@ function bindEvents() {
   [factorLibraryZone, activeSignalsZone].forEach((zone) => {
     zone.addEventListener("dragover", (event) => {
       event.preventDefault();
+      zone.classList.add("is-over");
+    });
+
+    zone.addEventListener("dragleave", () => {
+      zone.classList.remove("is-over");
     });
 
     zone.addEventListener("drop", (event) => {
       event.preventDefault();
+      zone.classList.remove("is-over");
       const factorId = event.dataTransfer.getData("text/plain");
       if (!factorId) {
         return;
       }
       moveFactor(factorId, zone === activeSignalsZone);
-    });
-  });
-
-  [factorLibraryZone, activeSignalsZone].forEach((zone) => {
-    zone.addEventListener("dragstart", (event) => {
-      const card = event.target.closest("[data-factor-id]");
-      if (!card) {
-        return;
-      }
-      event.dataTransfer.setData("text/plain", card.dataset.factorId);
-      event.dataTransfer.effectAllowed = "move";
     });
   });
 
