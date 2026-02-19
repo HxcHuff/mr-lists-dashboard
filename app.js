@@ -138,7 +138,9 @@ const state = {
   activeWatchlistId: localStorage.getItem(ACTIVE_WATCHLIST_KEY) || "ALL",
   advisor: loadAdvisorSettings(),
   strategyLab: loadStrategyLabState(),
-  portfolio: loadPortfolio()
+  portfolio: loadPortfolio(),
+  portfolioSearch: "",
+  portfolioPickSymbol: "AAPL"
 };
 
 const authCard = document.getElementById("authCard");
@@ -190,7 +192,8 @@ const predictionScoreValue = document.getElementById("predictionScoreValue");
 const consolidationScoreValue = document.getElementById("consolidationScoreValue");
 const strategySignalSummary = document.getElementById("strategySignalSummary");
 const strategyStockList = document.getElementById("strategyStockList");
-const portfolioSymbolSelect = document.getElementById("portfolioSymbolSelect");
+const portfolioStockSearchInput = document.getElementById("portfolioStockSearchInput");
+const portfolioStockPickerBody = document.getElementById("portfolioStockPickerBody");
 const portfolioSharesInput = document.getElementById("portfolioSharesInput");
 const portfolioCostInput = document.getElementById("portfolioCostInput");
 const addPortfolioHoldingBtn = document.getElementById("addPortfolioHoldingBtn");
@@ -493,10 +496,54 @@ function removePortfolioHolding(symbol) {
   renderPortfolio();
 }
 
-function renderPortfolioSymbolSelect() {
-  portfolioSymbolSelect.innerHTML = state.stocks
-    .map((s) => `<option value="${s.symbol}">${s.symbol} - ${s.company}</option>`)
-    .join("");
+function portfolioPickerStocks() {
+  const term = state.portfolioSearch.trim().toLowerCase();
+  let list = state.stocks;
+  if (term) {
+    list = list.filter((s) => s.symbol.toLowerCase().includes(term) || s.company.toLowerCase().includes(term));
+  }
+  return list.sort((a, b) => b.marketCap - a.marketCap);
+}
+
+function renderPortfolioStockPicker() {
+  const stocks = portfolioPickerStocks();
+  if (!stocks.length) {
+    portfolioStockPickerBody.innerHTML = '<tr><td colspan="6">No stocks match this search.</td></tr>';
+    addPortfolioHoldingBtn.disabled = true;
+    return;
+  }
+
+  if (!stocks.some((s) => s.symbol === state.portfolioPickSymbol)) {
+    state.portfolioPickSymbol = stocks[0].symbol;
+  }
+
+  portfolioStockPickerBody.innerHTML = stocks.map((s) => `
+    <tr class="${s.symbol === state.portfolioPickSymbol ? "active" : ""}" data-picker-symbol="${s.symbol}">
+      <td>${s.symbol === state.portfolioPickSymbol ? "Selected" : ""}</td>
+      <td><strong>${s.symbol}</strong></td>
+      <td>${s.company}</td>
+      <td>${fmtCurrency(s.price)}</td>
+      <td class="${s.dayPct >= 0 ? "pos" : "neg"}">${fmtPct(s.dayPct)}</td>
+      <td><button type="button" class="secondary" data-picker-add="${s.symbol}">Add</button></td>
+    </tr>
+  `).join("");
+
+  portfolioStockPickerBody.querySelectorAll("[data-picker-symbol]").forEach((row) => {
+    row.addEventListener("click", () => {
+      state.portfolioPickSymbol = row.dataset.pickerSymbol;
+      renderPortfolioStockPicker();
+    });
+  });
+
+  portfolioStockPickerBody.querySelectorAll("[data-picker-add]").forEach((btn) => {
+    btn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      addPortfolioHolding(btn.dataset.pickerAdd, portfolioSharesInput.value, portfolioCostInput.value);
+      portfolioCostInput.value = "";
+    });
+  });
+
+  addPortfolioHoldingBtn.disabled = false;
 }
 
 function renderPortfolioSummary() {
@@ -517,7 +564,7 @@ function renderPortfolioSummary() {
 }
 
 function renderPortfolio() {
-  renderPortfolioSymbolSelect();
+  renderPortfolioStockPicker();
   renderPortfolioSummary();
   if (!state.portfolio.length) {
     portfolioTableBody.innerHTML = '<tr><td colspan="7">No holdings yet. Add your current portfolio.</td></tr>';
@@ -1380,11 +1427,16 @@ function bindEvents() {
 
   addPortfolioHoldingBtn.addEventListener("click", () => {
     addPortfolioHolding(
-      portfolioSymbolSelect.value,
+      state.portfolioPickSymbol,
       portfolioSharesInput.value,
       portfolioCostInput.value
     );
     portfolioCostInput.value = "";
+  });
+
+  portfolioStockSearchInput.addEventListener("input", () => {
+    state.portfolioSearch = portfolioStockSearchInput.value;
+    renderPortfolioStockPicker();
   });
 
   saveApiKeyBtn.addEventListener("click", () => {

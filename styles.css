@@ -657,6 +657,11 @@ canvas {
   margin-bottom: 10px;
 }
 
+.portfolio-stock-picker-wrap {
+  max-height: 30vh;
+  margin-bottom: 10px;
+}
+
 .settings-head {
   display: flex;
   justify-content: space-between;

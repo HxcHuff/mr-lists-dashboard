@@ -257,8 +257,8 @@
       </div>
       <div class="portfolio-controls">
         <label>
-          Symbol
-          <select id="portfolioSymbolSelect"></select>
+          Search Stocks
+          <input id="portfolioStockSearchInput" type="search" placeholder="AAPL, Nvidia, Tesla..." />
         </label>
         <label>
           Shares
@@ -268,7 +268,22 @@
           Cost Basis
           <input id="portfolioCostInput" type="number" min="0" step="0.01" placeholder="Optional" />
         </label>
-        <button id="addPortfolioHoldingBtn" type="button">Add Holding</button>
+        <button id="addPortfolioHoldingBtn" type="button">Add Selected</button>
+      </div>
+      <div class="table-wrap portfolio-stock-picker-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Pick</th>
+              <th>Symbol</th>
+              <th>Company</th>
+              <th>Price</th>
+              <th>Day %</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="portfolioStockPickerBody"></tbody>
+        </table>
       </div>
       <div id="portfolioSummary" class="portfolio-summary"></div>
       <div class="table-wrap">
