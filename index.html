@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mr. List's Dashboard</title>
+  <meta name="description" content="Minimalistic but data-rich financial dashboard for informed index and stock decisions." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <section id="authCard" class="auth-card">
+      <div class="auth-badge">Secure Access</div>
+      <h1>Mr. List's Dashboard</h1>
+      <p>Enter credentials to access the live decision cockpit.</p>
+      <form id="loginForm" autocomplete="off">
+        <label for="username">Username</label>
+        <input id="username" name="username" type="text" required placeholder="demo.user" />
+
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" required placeholder="••••••••••" />
+
+        <button type="submit">Sign In</button>
+        <small id="authMessage" aria-live="polite"></small>
+      </form>
+      <div class="auth-note">
+        Demo hardening: salted password check, client-side lockout after repeated failures, session timeout.
+      </div>
+    </section>
+
+    <main id="dashboard" class="dashboard hidden" aria-hidden="true">
+      <header class="topbar">
+        <div>
+          <h2>Mr. List's Dashboard</h2>
+          <p class="subtext">Tech, chips, and vehicles in one decision view.</p>
+        </div>
+        <div class="session-actions">
+          <span id="sessionClock"></span>
+          <span id="marketStatus" class="market-status">Data: Simulated</span>
+          <button id="settingsBtn" type="button" class="secondary">System Settings</button>
+          <button id="logoutBtn" type="button">Log Out</button>
+        </div>
+      </header>
+
+      <section class="control-grid">
+        <label>
+          Portfolio
+          <select id="sectorFilter">
+            <option value="ALL">All Watchlists</option>
+            <option value="TECH">Major Tech (Top 5)</option>
+            <option value="CHIPS">Chip Manufacturers (Top 5)</option>
+            <option value="VEHICLES">Vehicle Manufacturers (Top 5)</option>
+          </select>
+        </label>
+
+        <label>
+          Exchange
+          <select id="exchangeFilter">
+            <option value="ALL">All Exchanges</option>
+            <option value="NASDAQ">NASDAQ</option>
+            <option value="NYSE">NYSE</option>
+            <option value="TSE">TSE</option>
+          </select>
+        </label>
+
+        <label>
+          Sort
+          <select id="sortFilter">
+            <option value="marketCap">Market Cap (High-Low)</option>
+            <option value="dayPct">Day Change % (High-Low)</option>
+            <option value="ytdPct">YTD % (High-Low)</option>
+            <option value="pe">P/E Ratio (Low-High)</option>
+            <option value="volume">Volume (High-Low)</option>
+          </select>
+        </label>
+
+        <label>
+          Symbol Search
+          <input id="searchInput" type="search" placeholder="NVDA, Tesla..." />
+        </label>
+
+        <label>
+          Data Mode
+          <select id="dataMode">
+            <option value="LIVE">Live Quotes</option>
+            <option value="SIM">Simulation Only</option>
+          </select>
+        </label>
+      </section>
+
+      <section class="watchlist-bar panel">
+        <label>
+          Watchlist
+          <select id="watchlistSelect"></select>
+        </label>
+        <label>
+          Edit Name
+          <input id="watchlistNameInput" type="text" placeholder="Watchlist name" />
+        </label>
+        <button id="createWatchlistBtn" type="button" class="secondary">New List</button>
+        <button id="renameWatchlistBtn" type="button" class="secondary">Rename</button>
+        <button id="deleteWatchlistBtn" type="button">Delete</button>
+      </section>
+
+      <section id="kpiGrid" class="kpi-grid"></section>
+
+      <section class="content-grid">
+        <article class="panel table-panel">
+          <div class="panel-head">
+            <h3>Market Matrix</h3>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Add</th>
+                  <th>Symbol</th>
+                  <th>Company</th>
+                  <th>Category</th>
+                  <th>Exchange</th>
+                  <th>Price</th>
+                  <th>Day %</th>
+                  <th>YTD %</th>
+                  <th>P/E</th>
+                  <th>Volume</th>
+                </tr>
+              </thead>
+              <tbody id="stockTableBody"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="panel detail-panel">
+          <h3>Snapshot</h3>
+          <div id="predictorCard" class="predictor-card"></div>
+          <div id="watchlistSymbols" class="watchlist-symbols"></div>
+          <div id="selectedStock"></div>
+          <canvas id="sparkline" width="480" height="210" aria-label="Price trend"></canvas>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <section id="settingsPage" class="settings-page hidden" aria-hidden="true">
+    <article class="settings-card panel">
+      <div class="settings-head">
+        <h3>System Settings</h3>
+        <button id="closeSettingsBtn" type="button" class="secondary">Close</button>
+      </div>
+      <p class="settings-note">Live Data Setup: paste your Finnhub API key, then click save.</p>
+      <div class="live-setup-controls">
+        <label>
+          Finnhub API Key
+          <input id="apiKeyInput" type="password" placeholder="Paste free API key here" />
+        </label>
+        <button id="saveApiKeyBtn" type="button" class="secondary">Save API Key</button>
+        <button id="refreshBtn" type="button">Refresh Data Now</button>
+      </div>
+    </article>
+  </section>
+
+  <script src="app.js" defer></script>
+</body>
+</html>
