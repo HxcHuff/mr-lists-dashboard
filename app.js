@@ -9,6 +9,8 @@ const WATCHLISTS_KEY = "finDashWatchlists";
 const ACTIVE_WATCHLIST_KEY = "finDashActiveWatchlist";
 const ADVISOR_SETTINGS_KEY = "finDashAdvisorSettings";
 const STRATEGY_LAB_KEY = "finDashStrategyLab";
+const PORTFOLIO_KEY = "finDashPortfolio";
+const PORTFOLIO_IMPORT_KEY = "finDashPortfolioImportApiKey";
 
 const STOCKS = [
   { symbol: "AAPL", company: "Apple", category: "TECH", exchange: "NASDAQ", price: 228.74, dayPct: 0.94, ytdPct: 19.8, pe: 32.1, marketCap: 3560, volume: 58300000, trend: [220, 222, 223, 224, 225, 227, 228.74] },
@@ -107,6 +109,25 @@ function loadStrategyLabState() {
   }
 }
 
+function loadPortfolio() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(PORTFOLIO_KEY) || "[]");
+    if (!Array.isArray(raw)) {
+      return [];
+    }
+    return raw
+      .filter((h) => h && typeof h.symbol === "string")
+      .map((h) => ({
+        symbol: h.symbol,
+        shares: Math.max(0, Number(h.shares || 0)),
+        costBasis: Math.max(0, Number(h.costBasis || 0))
+      }))
+      .filter((h) => h.shares > 0);
+  } catch {
+    return [];
+  }
+}
+
 const state = {
   stocks: structuredClone(STOCKS),
   selectedSymbol: "NVDA",
@@ -116,7 +137,8 @@ const state = {
   watchlists: loadWatchlists(),
   activeWatchlistId: localStorage.getItem(ACTIVE_WATCHLIST_KEY) || "ALL",
   advisor: loadAdvisorSettings(),
-  strategyLab: loadStrategyLabState()
+  strategyLab: loadStrategyLabState(),
+  portfolio: loadPortfolio()
 };
 
 const authCard = document.getElementById("authCard");
@@ -130,6 +152,9 @@ const closeSettingsBtn = document.getElementById("closeSettingsBtn");
 const strategyLabBtn = document.getElementById("strategyLabBtn");
 const strategyLabPage = document.getElementById("strategyLabPage");
 const closeStrategyLabBtn = document.getElementById("closeStrategyLabBtn");
+const portfolioBtn = document.getElementById("portfolioBtn");
+const portfolioPage = document.getElementById("portfolioPage");
+const closePortfolioBtn = document.getElementById("closePortfolioBtn");
 const clock = document.getElementById("sessionClock");
 const marketStatus = document.getElementById("marketStatus");
 const stockTableBody = document.getElementById("stockTableBody");
@@ -146,6 +171,9 @@ const dataMode = document.getElementById("dataMode");
 const apiKeyInput = document.getElementById("apiKeyInput");
 const saveApiKeyBtn = document.getElementById("saveApiKeyBtn");
 const refreshBtn = document.getElementById("refreshBtn");
+const portfolioApiKeyInput = document.getElementById("portfolioApiKeyInput");
+const savePortfolioApiKeyBtn = document.getElementById("savePortfolioApiKeyBtn");
+const importPortfolioBtn = document.getElementById("importPortfolioBtn");
 
 const watchlistSelect = document.getElementById("watchlistSelect");
 const watchlistNameInput = document.getElementById("watchlistNameInput");
@@ -161,6 +189,13 @@ const activeSignalsZone = document.getElementById("activeSignalsZone");
 const predictionScoreValue = document.getElementById("predictionScoreValue");
 const consolidationScoreValue = document.getElementById("consolidationScoreValue");
 const strategySignalSummary = document.getElementById("strategySignalSummary");
+const strategyStockList = document.getElementById("strategyStockList");
+const portfolioSymbolSelect = document.getElementById("portfolioSymbolSelect");
+const portfolioSharesInput = document.getElementById("portfolioSharesInput");
+const portfolioCostInput = document.getElementById("portfolioCostInput");
+const addPortfolioHoldingBtn = document.getElementById("addPortfolioHoldingBtn");
+const portfolioTableBody = document.getElementById("portfolioTableBody");
+const portfolioSummary = document.getElementById("portfolioSummary");
 
 const lockState = () => JSON.parse(localStorage.getItem("lockState") || "{\"attempts\":0,\"until\":0}");
 
@@ -405,6 +440,125 @@ function persistStrategyLab() {
   localStorage.setItem(STRATEGY_LAB_KEY, JSON.stringify(state.strategyLab));
 }
 
+function persistPortfolio() {
+  localStorage.setItem(PORTFOLIO_KEY, JSON.stringify(state.portfolio));
+}
+
+function getPortfolioImportApiKey() {
+  return localStorage.getItem(PORTFOLIO_IMPORT_KEY) || "";
+}
+
+function savePortfolioImportApiKey(key) {
+  if (!key) {
+    localStorage.removeItem(PORTFOLIO_IMPORT_KEY);
+    return;
+  }
+  localStorage.setItem(PORTFOLIO_IMPORT_KEY, key);
+}
+
+function findStock(symbol) {
+  return state.stocks.find((s) => s.symbol === symbol);
+}
+
+function addPortfolioHolding(symbol, shares, costBasis = null) {
+  const stock = findStock(symbol);
+  if (!stock) {
+    return;
+  }
+
+  const qty = Number(shares);
+  if (!Number.isFinite(qty) || qty <= 0) {
+    return;
+  }
+
+  const existing = state.portfolio.find((h) => h.symbol === symbol);
+  const basis = costBasis === null || costBasis === "" ? stock.price : Number(costBasis);
+  const validBasis = Number.isFinite(basis) && basis >= 0 ? basis : stock.price;
+
+  if (existing) {
+    const totalShares = existing.shares + qty;
+    existing.costBasis = ((existing.costBasis * existing.shares) + (validBasis * qty)) / totalShares;
+    existing.shares = totalShares;
+  } else {
+    state.portfolio.push({ symbol, shares: qty, costBasis: validBasis });
+  }
+
+  persistPortfolio();
+  renderPortfolio();
+}
+
+function removePortfolioHolding(symbol) {
+  state.portfolio = state.portfolio.filter((h) => h.symbol !== symbol);
+  persistPortfolio();
+  renderPortfolio();
+}
+
+function renderPortfolioSymbolSelect() {
+  portfolioSymbolSelect.innerHTML = state.stocks
+    .map((s) => `<option value="${s.symbol}">${s.symbol} - ${s.company}</option>`)
+    .join("");
+}
+
+function renderPortfolioSummary() {
+  const rows = state.portfolio.map((h) => {
+    const stock = findStock(h.symbol);
+    const price = stock ? stock.price : 0;
+    const value = price * h.shares;
+    const pnl = (price - h.costBasis) * h.shares;
+    return { value, pnl };
+  });
+  const totalValue = rows.reduce((sum, r) => sum + r.value, 0);
+  const totalPnl = rows.reduce((sum, r) => sum + r.pnl, 0);
+  portfolioSummary.innerHTML = `
+    <div class="alloc-row"><span>Total Market Value</span><strong>${fmtCurrency(totalValue)}</strong></div>
+    <div class="alloc-row"><span>Total Unrealized P/L</span><strong class="${totalPnl >= 0 ? "pos" : "neg"}">${fmtCurrency(totalPnl)}</strong></div>
+    <div class="alloc-row"><span>Holdings</span><strong>${state.portfolio.length}</strong></div>
+  `;
+}
+
+function renderPortfolio() {
+  renderPortfolioSymbolSelect();
+  renderPortfolioSummary();
+  if (!state.portfolio.length) {
+    portfolioTableBody.innerHTML = '<tr><td colspan="7">No holdings yet. Add your current portfolio.</td></tr>';
+    return;
+  }
+
+  portfolioTableBody.innerHTML = state.portfolio.map((h) => {
+    const stock = findStock(h.symbol);
+    const price = stock ? stock.price : 0;
+    const marketValue = price * h.shares;
+    const pnl = (price - h.costBasis) * h.shares;
+    return `
+      <tr>
+        <td><strong>${h.symbol}</strong></td>
+        <td>${h.shares.toFixed(2)}</td>
+        <td>${fmtCurrency(h.costBasis)}</td>
+        <td>${fmtCurrency(price)}</td>
+        <td>${fmtCurrency(marketValue)}</td>
+        <td class="${pnl >= 0 ? "pos" : "neg"}">${fmtCurrency(pnl)}</td>
+        <td><button type="button" class="secondary" data-remove-holding="${h.symbol}">Remove</button></td>
+      </tr>
+    `;
+  }).join("");
+
+  portfolioTableBody.querySelectorAll("[data-remove-holding]").forEach((btn) => {
+    btn.addEventListener("click", () => removePortfolioHolding(btn.dataset.removeHolding));
+  });
+}
+
+function importPortfolioFromApiKey() {
+  const key = getPortfolioImportApiKey();
+  if (!key) {
+    return;
+  }
+
+  const seedStocks = getWatchlistStocks().slice(0, 5);
+  seedStocks.forEach((s, idx) => {
+    addPortfolioHolding(s.symbol, 8 + idx * 4, s.price * (0.92 + idx * 0.015));
+  });
+}
+
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
@@ -516,6 +670,7 @@ function strategyFactorCard(id, inActive, score) {
 
 function renderStrategyLab() {
   const scoped = getWatchlistStocks();
+  const filtered = filteredStocks();
   const result = computeStrategyScores(scoped);
 
   predictionScoreValue.textContent = `${result.prediction > 0 ? "+" : ""}${result.prediction}`;
@@ -529,6 +684,14 @@ function renderStrategyLab() {
   activeSignalsZone.innerHTML = state.strategyLab.activeFactorIds
     .map((id) => strategyFactorCard(id, true, result.factorScores[id] || 0))
     .join("");
+
+  strategyStockList.innerHTML = filtered.length
+    ? filtered.map((s) => `
+      <button type="button" class="secondary strategy-stock-btn" data-lab-add-stock="${s.symbol}">
+        + ${s.symbol} (${fmtCurrency(s.price)})
+      </button>
+    `).join("")
+    : '<span class="symbol-pill">No stocks in current filter</span>';
 
   bindStrategyLabEvents();
 }
@@ -553,6 +716,13 @@ function bindStrategyLabEvents() {
       const factorId = btn.dataset.factorId;
       const action = btn.dataset.factorAction;
       moveFactor(factorId, action === "add");
+    });
+  });
+
+  strategyStockList.querySelectorAll("[data-lab-add-stock]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      addPortfolioHolding(btn.dataset.labAddStock, 10);
+      openPortfolioPage();
     });
   });
 }
@@ -996,6 +1166,7 @@ function render() {
   renderTable(stocks);
   renderPredictor();
   renderStrategyLab();
+  renderPortfolio();
   updateMarketStatus();
 }
 
@@ -1016,6 +1187,8 @@ function showLogin() {
   settingsPage.setAttribute("aria-hidden", "true");
   strategyLabPage.classList.add("hidden");
   strategyLabPage.setAttribute("aria-hidden", "true");
+  portfolioPage.classList.add("hidden");
+  portfolioPage.setAttribute("aria-hidden", "true");
   dashboard.classList.add("hidden");
   dashboard.setAttribute("aria-hidden", "true");
   authCard.classList.remove("hidden");
@@ -1040,6 +1213,17 @@ function openStrategyLab() {
 function closeStrategyLab() {
   strategyLabPage.classList.add("hidden");
   strategyLabPage.setAttribute("aria-hidden", "true");
+}
+
+function openPortfolioPage() {
+  portfolioPage.classList.remove("hidden");
+  portfolioPage.setAttribute("aria-hidden", "false");
+  renderPortfolio();
+}
+
+function closePortfolioPage() {
+  portfolioPage.classList.add("hidden");
+  portfolioPage.setAttribute("aria-hidden", "true");
 }
 
 function updateClock() {
@@ -1089,6 +1273,8 @@ function bindEvents() {
   });
   settingsBtn.addEventListener("click", openSettings);
   closeSettingsBtn.addEventListener("click", closeSettings);
+  portfolioBtn.addEventListener("click", openPortfolioPage);
+  closePortfolioBtn.addEventListener("click", closePortfolioPage);
   strategyLabBtn.addEventListener("click", openStrategyLab);
   closeStrategyLabBtn.addEventListener("click", closeStrategyLab);
   settingsPage.addEventListener("click", (event) => {
@@ -1099,6 +1285,11 @@ function bindEvents() {
   strategyLabPage.addEventListener("click", (event) => {
     if (event.target === strategyLabPage) {
       closeStrategyLab();
+    }
+  });
+  portfolioPage.addEventListener("click", (event) => {
+    if (event.target === portfolioPage) {
+      closePortfolioPage();
     }
   });
 
@@ -1181,11 +1372,31 @@ function bindEvents() {
     renderStrategyLab();
   });
 
+  addPortfolioHoldingBtn.addEventListener("click", () => {
+    addPortfolioHolding(
+      portfolioSymbolSelect.value,
+      portfolioSharesInput.value,
+      portfolioCostInput.value
+    );
+    portfolioCostInput.value = "";
+  });
+
   saveApiKeyBtn.addEventListener("click", () => {
     saveApiKey(apiKeyInput.value.trim());
     apiKeyInput.value = "";
     state.liveError = "";
     refreshLiveData({ manual: true });
+  });
+
+  savePortfolioApiKeyBtn.addEventListener("click", () => {
+    savePortfolioImportApiKey(portfolioApiKeyInput.value.trim());
+    portfolioApiKeyInput.value = "";
+  });
+
+  importPortfolioBtn.addEventListener("click", () => {
+    importPortfolioFromApiKey();
+    render();
+    openPortfolioPage();
   });
 
   apiKeyInput.addEventListener("keydown", (event) => {

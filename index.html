@@ -40,6 +40,7 @@
         <div class="session-actions">
           <span id="sessionClock"></span>
           <span id="marketStatus" class="market-status">Data: Simulated</span>
+          <button id="portfolioBtn" type="button" class="secondary">Portfolio</button>
           <button id="strategyLabBtn" type="button" class="secondary">Strategy Lab</button>
           <button id="settingsBtn" type="button" class="secondary">System Settings</button>
           <button id="logoutBtn" type="button">Log Out</button>
@@ -195,6 +196,15 @@
         <button id="saveApiKeyBtn" type="button" class="secondary">Save API Key</button>
         <button id="refreshBtn" type="button">Refresh Data Now</button>
       </div>
+      <p class="settings-note">Portfolio Import: add brokerage/integration API key if portfolio import is needed.</p>
+      <div class="live-setup-controls">
+        <label>
+          Portfolio Import API Key
+          <input id="portfolioApiKeyInput" type="password" placeholder="Paste broker API key" />
+        </label>
+        <button id="savePortfolioApiKeyBtn" type="button" class="secondary">Save Key</button>
+        <button id="importPortfolioBtn" type="button">Import Portfolio</button>
+      </div>
     </article>
   </section>
 
@@ -230,6 +240,52 @@
           <h4 class="strategy-column-title">Active Signals</h4>
           <div id="activeSignalsZone" class="strategy-zone strategy-zone-active"></div>
         </section>
+      </div>
+      <div class="strategy-stock-builder">
+        <h4 class="strategy-column-title">Portfolio Builder (Stocks)</h4>
+        <p class="settings-note">Quick-add stocks from your current filtered view into Portfolio.</p>
+        <div id="strategyStockList" class="strategy-stock-list"></div>
+      </div>
+    </article>
+  </section>
+
+  <section id="portfolioPage" class="settings-page hidden" aria-hidden="true">
+    <article class="strategy-lab-card panel">
+      <div class="settings-head">
+        <h3>Portfolio</h3>
+        <button id="closePortfolioBtn" type="button" class="secondary">Close</button>
+      </div>
+      <div class="portfolio-controls">
+        <label>
+          Symbol
+          <select id="portfolioSymbolSelect"></select>
+        </label>
+        <label>
+          Shares
+          <input id="portfolioSharesInput" type="number" min="0.01" step="0.01" value="10" />
+        </label>
+        <label>
+          Cost Basis
+          <input id="portfolioCostInput" type="number" min="0" step="0.01" placeholder="Optional" />
+        </label>
+        <button id="addPortfolioHoldingBtn" type="button">Add Holding</button>
+      </div>
+      <div id="portfolioSummary" class="portfolio-summary"></div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Symbol</th>
+              <th>Shares</th>
+              <th>Cost Basis</th>
+              <th>Last Price</th>
+              <th>Market Value</th>
+              <th>P/L</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="portfolioTableBody"></tbody>
+        </table>
       </div>
     </article>
   </section>
